@@ -45,10 +45,11 @@ from rsl_rl.runners import OnPolicyRunner
 
 # Import extensions to set up environment tasks
 import MARL_mav_carry_ext.tasks  # noqa: F401
+from MARL_mav_carry_ext.utils.io import dump_pickle
 
 from isaaclab.envs import ManagerBasedRLEnvCfg
 from isaaclab.utils.dict import print_dict
-from isaaclab.utils.io import dump_pickle, dump_yaml
+from isaaclab.utils.io import dump_yaml
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
 from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
 
