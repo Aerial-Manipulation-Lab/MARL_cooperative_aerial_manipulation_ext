@@ -94,8 +94,6 @@ if args_cli.ml_framework.startswith("torch"):
 elif args_cli.ml_framework.startswith("jax"):
     from skrl.utils.runner.jax import Runner
 
-from isaaclab_rl.skrl import SkrlVecEnvWrapper
-
 import MARL_mav_carry_ext.tasks  # noqa: F401
 
 import isaaclab_tasks  # noqa: F401
@@ -106,6 +104,7 @@ from isaaclab.envs import (
     ManagerBasedRLEnvCfg,
     multi_agent_to_single_agent,
 )
+from isaaclab_rl.skrl import SkrlVecEnvWrapper
 from isaaclab_tasks.utils.hydra import hydra_task_config
 
 # register the gym environment

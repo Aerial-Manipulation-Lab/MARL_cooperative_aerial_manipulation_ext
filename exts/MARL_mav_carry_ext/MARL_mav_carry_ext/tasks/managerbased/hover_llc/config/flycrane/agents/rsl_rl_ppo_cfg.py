@@ -1,5 +1,5 @@
 from isaaclab.utils import configclass
-from isaaclab_tasks.utils.wrappers.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
+from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
 
 
 @configclass
@@ -8,12 +8,14 @@ class FlycraneHoverPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     max_iterations = 150000
     save_interval = 50
     experiment_name = "Flycrane_hover"
-    empirical_normalization = False
+    obs_groups = {"policy": ["policy"], "critic": ["policy"]}
     # logger = "wandb"
     # resume = True
     wandb_project = "Flycrane_hover"
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
+        actor_obs_normalization=False,
+        critic_obs_normalization=False,
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
         activation="elu",

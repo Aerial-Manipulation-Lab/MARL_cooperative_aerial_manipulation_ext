@@ -2,7 +2,7 @@ import torch
 
 from MARL_mav_carry_ext.controllers.utils import LowPassFilter
 
-from isaaclab.utils.math import quat_inv, quat_rotate
+from isaaclab.utils.math import quat_apply, quat_inv
 
 
 class IndiController:
@@ -98,8 +98,8 @@ class IndiController:
             self.unfiltered_mot = forces
             self.filtered_mot = filtered_forces
 
-        omega = quat_rotate(quat_inv(state["quat"]), state["ang_vel"])  # body rates # normally from IMU
-        omega_dot = quat_rotate(
+        omega = quat_apply(quat_inv(state["quat"]), state["ang_vel"])  # body rates # normally from IMU
+        omega_dot = quat_apply(
             quat_inv(state["quat"]), state["ang_acc"]
         )  # body accelerations # normally from derivative filtered body rate
         tau = torch.matmul(self.G_1, forces.transpose(0, 1)).transpose(0, 1)[:, 1:]  # torque commands
@@ -111,7 +111,7 @@ class IndiController:
         moments = self.inertia_mat.matmul(alpha_cmd.transpose(0, 1)).transpose(0, 1) + torch.linalg.cross(
             omega, self.inertia_mat.matmul(omega.transpose(0, 1)).transpose(0, 1)
         )  # - torch.linalg.cross(
-        # self.p_offset, quat_rotate(quat_inv(state["quat"]), acc_load * self.falcon_mass)) # M_load in body frame
+        # self.p_offset, quat_apply(quat_inv(state["quat"]), acc_load * self.falcon_mass)) # M_load in body frame
 
         mu_ndi[:, 1:] = moments
         mu[:, 1:] = tau + self.inertia_mat.matmul((alpha_cmd - omega_dot).transpose(0, 1)).transpose(0, 1)
@@ -141,10 +141,10 @@ class IndiController:
     #     #     self.unfiltered_mot = forces
     #     #     self.filtered_mot = filtered_forces
 
-    #     omega = quat_rotate(quat_inv(state["quat"]), state["ang_vel"])  # body rates # normally from IMU
+    #     omega = quat_apply(quat_inv(state["quat"]), state["ang_vel"])  # body rates # normally from IMU
     #     alpha_cmd = self.kp * (setpoint["body_rates"] - omega)
     #     acc_cmd = setpoint["cthrust"]
-    #     omega_dot = quat_rotate(
+    #     omega_dot = quat_apply(
     #         quat_inv(state["quat"]), state["ang_acc"]
     #     )  # body accelerations # normally from derivative filtered body rate
     #     tau = torch.matmul(self.G_1, forces.transpose(0, 1)).transpose(0, 1)[:, 1:]  # torque commands
@@ -157,7 +157,7 @@ class IndiController:
     #     moments = self.inertia_mat.matmul(alpha_cmd.transpose(0, 1)).transpose(0, 1) + torch.linalg.cross(
     #         omega, self.inertia_mat.matmul(omega.transpose(0, 1)).transpose(0, 1)
     #     )  # - torch.linalg.cross(
-    #     # self.p_offset, quat_rotate(quat_inv(state["quat"]), acc_load * self.falcon_mass)) # M_load in body frame
+    #     # self.p_offset, quat_apply(quat_inv(state["quat"]), acc_load * self.falcon_mass)) # M_load in body frame
 
     #     mu_ndi[:, 1:] = moments
     #     mu[:, 1:] = tau + self.inertia_mat.matmul((alpha_cmd - omega_dot).transpose(0, 1)).transpose(0, 1)

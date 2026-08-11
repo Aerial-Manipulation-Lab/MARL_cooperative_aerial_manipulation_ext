@@ -48,8 +48,8 @@ from rsl_rl.runners import OnPolicyRunner
 import MARL_mav_carry_ext.tasks  # noqa: F401
 
 from isaaclab.utils.dict import print_dict
+from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper, export_policy_as_onnx
 from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
-from isaaclab_tasks.utils.wrappers.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper, export_policy_as_onnx
 
 
 def main():
@@ -81,7 +81,7 @@ def main():
         print_dict(video_kwargs, nesting=4)
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
     # wrap around environment for rsl-rl
-    env = RslRlVecEnvWrapper(env)
+    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
     print(f"[INFO]: Loading model checkpoint from: {resume_path}")
 
@@ -92,12 +92,15 @@ def main():
     # obtain the trained policy for inference
     policy = ppo_runner.get_inference_policy(device=env.unwrapped.device)
 
+    policy_nn = ppo_runner.alg.policy
+    normalizer = getattr(policy_nn, "actor_obs_normalizer", None)
+
     # export policy to onnx
     export_model_dir = os.path.join(os.path.dirname(resume_path), "exported")
-    export_policy_as_onnx(ppo_runner.alg.actor_critic, export_model_dir, filename="policy.onnx")
+    export_policy_as_onnx(policy_nn, export_model_dir, normalizer=normalizer, filename="policy.onnx")
 
     # reset environment
-    obs, _ = env.get_observations()
+    obs = env.get_observations()
     timestep = 0
 
     # create lists for action plots
@@ -205,6 +208,7 @@ def main():
             actions = policy(obs)
             # env stepping
             obs, rewards, dones, _ = env.step(actions)
+            obs_flat = obs["policy"]
             timestep += 1
             if args_cli.plot_data:
 
@@ -223,88 +227,88 @@ def main():
                 drone_3_z_torque.append(actions[:, 11].cpu().numpy())
 
                 # append payload observations
-                payload_pos_x.append(obs[:, 0].cpu().numpy())
-                payload_pos_y.append(obs[:, 1].cpu().numpy())
-                payload_pos_z.append(obs[:, 2].cpu().numpy())
-                payload_quat_w.append(obs[:, 3].cpu().numpy())
-                payload_quat_x.append(obs[:, 4].cpu().numpy())
-                payload_quat_y.append(obs[:, 5].cpu().numpy())
-                payload_quat_z.append(obs[:, 6].cpu().numpy())
-                payload_lin_vel_x.append(obs[:, 7].cpu().numpy())
-                payload_lin_vel_y.append(obs[:, 8].cpu().numpy())
-                payload_lin_vel_z.append(obs[:, 9].cpu().numpy())
-                payload_ang_vel_x.append(obs[:, 10].cpu().numpy())
-                payload_ang_vel_y.append(obs[:, 11].cpu().numpy())
-                payload_ang_vel_z.append(obs[:, 12].cpu().numpy())
+                payload_pos_x.append(obs_flat[:, 0].cpu().numpy())
+                payload_pos_y.append(obs_flat[:, 1].cpu().numpy())
+                payload_pos_z.append(obs_flat[:, 2].cpu().numpy())
+                payload_quat_w.append(obs_flat[:, 3].cpu().numpy())
+                payload_quat_x.append(obs_flat[:, 4].cpu().numpy())
+                payload_quat_y.append(obs_flat[:, 5].cpu().numpy())
+                payload_quat_z.append(obs_flat[:, 6].cpu().numpy())
+                payload_lin_vel_x.append(obs_flat[:, 7].cpu().numpy())
+                payload_lin_vel_y.append(obs_flat[:, 8].cpu().numpy())
+                payload_lin_vel_z.append(obs_flat[:, 9].cpu().numpy())
+                payload_ang_vel_x.append(obs_flat[:, 10].cpu().numpy())
+                payload_ang_vel_y.append(obs_flat[:, 11].cpu().numpy())
+                payload_ang_vel_z.append(obs_flat[:, 12].cpu().numpy())
 
                 # append drone observations
-                drone_1_pos_x.append(obs[:, 13].cpu().numpy())
-                drone_1_pos_y.append(obs[:, 14].cpu().numpy())
-                drone_1_pos_z.append(obs[:, 15].cpu().numpy())
-                drone_2_pos_x.append(obs[:, 16].cpu().numpy())
-                drone_2_pos_y.append(obs[:, 17].cpu().numpy())
-                drone_2_pos_z.append(obs[:, 18].cpu().numpy())
-                drone_3_pos_x.append(obs[:, 19].cpu().numpy())
-                drone_3_pos_y.append(obs[:, 20].cpu().numpy())
-                drone_3_pos_z.append(obs[:, 21].cpu().numpy())
+                drone_1_pos_x.append(obs_flat[:, 13].cpu().numpy())
+                drone_1_pos_y.append(obs_flat[:, 14].cpu().numpy())
+                drone_1_pos_z.append(obs_flat[:, 15].cpu().numpy())
+                drone_2_pos_x.append(obs_flat[:, 16].cpu().numpy())
+                drone_2_pos_y.append(obs_flat[:, 17].cpu().numpy())
+                drone_2_pos_z.append(obs_flat[:, 18].cpu().numpy())
+                drone_3_pos_x.append(obs_flat[:, 19].cpu().numpy())
+                drone_3_pos_y.append(obs_flat[:, 20].cpu().numpy())
+                drone_3_pos_z.append(obs_flat[:, 21].cpu().numpy())
 
-                drone_1_quat_w.append(obs[:, 22].cpu().numpy())
-                drone_1_quat_x.append(obs[:, 23].cpu().numpy())
-                drone_1_quat_y.append(obs[:, 24].cpu().numpy())
-                drone_1_quat_z.append(obs[:, 25].cpu().numpy())
-                drone_2_quat_w.append(obs[:, 26].cpu().numpy())
-                drone_2_quat_x.append(obs[:, 27].cpu().numpy())
-                drone_2_quat_y.append(obs[:, 28].cpu().numpy())
-                drone_2_quat_z.append(obs[:, 29].cpu().numpy())
-                drone_3_quat_w.append(obs[:, 30].cpu().numpy())
-                drone_3_quat_x.append(obs[:, 31].cpu().numpy())
-                drone_3_quat_y.append(obs[:, 32].cpu().numpy())
-                drone_3_quat_z.append(obs[:, 33].cpu().numpy())
+                drone_1_quat_w.append(obs_flat[:, 22].cpu().numpy())
+                drone_1_quat_x.append(obs_flat[:, 23].cpu().numpy())
+                drone_1_quat_y.append(obs_flat[:, 24].cpu().numpy())
+                drone_1_quat_z.append(obs_flat[:, 25].cpu().numpy())
+                drone_2_quat_w.append(obs_flat[:, 26].cpu().numpy())
+                drone_2_quat_x.append(obs_flat[:, 27].cpu().numpy())
+                drone_2_quat_y.append(obs_flat[:, 28].cpu().numpy())
+                drone_2_quat_z.append(obs_flat[:, 29].cpu().numpy())
+                drone_3_quat_w.append(obs_flat[:, 30].cpu().numpy())
+                drone_3_quat_x.append(obs_flat[:, 31].cpu().numpy())
+                drone_3_quat_y.append(obs_flat[:, 32].cpu().numpy())
+                drone_3_quat_z.append(obs_flat[:, 33].cpu().numpy())
 
-                drone_1_lin_vel_x.append(obs[:, 34].cpu().numpy())
-                drone_1_lin_vel_y.append(obs[:, 35].cpu().numpy())
-                drone_1_lin_vel_z.append(obs[:, 36].cpu().numpy())
-                drone_2_lin_vel_x.append(obs[:, 37].cpu().numpy())
-                drone_2_lin_vel_y.append(obs[:, 38].cpu().numpy())
-                drone_2_lin_vel_z.append(obs[:, 39].cpu().numpy())
-                drone_3_lin_vel_x.append(obs[:, 40].cpu().numpy())
-                drone_3_lin_vel_y.append(obs[:, 41].cpu().numpy())
-                drone_3_lin_vel_z.append(obs[:, 42].cpu().numpy())
+                drone_1_lin_vel_x.append(obs_flat[:, 34].cpu().numpy())
+                drone_1_lin_vel_y.append(obs_flat[:, 35].cpu().numpy())
+                drone_1_lin_vel_z.append(obs_flat[:, 36].cpu().numpy())
+                drone_2_lin_vel_x.append(obs_flat[:, 37].cpu().numpy())
+                drone_2_lin_vel_y.append(obs_flat[:, 38].cpu().numpy())
+                drone_2_lin_vel_z.append(obs_flat[:, 39].cpu().numpy())
+                drone_3_lin_vel_x.append(obs_flat[:, 40].cpu().numpy())
+                drone_3_lin_vel_y.append(obs_flat[:, 41].cpu().numpy())
+                drone_3_lin_vel_z.append(obs_flat[:, 42].cpu().numpy())
 
-                drone_1_ang_vel_x.append(obs[:, 43].cpu().numpy())
-                drone_1_ang_vel_y.append(obs[:, 44].cpu().numpy())
-                drone_1_ang_vel_z.append(obs[:, 45].cpu().numpy())
-                drone_2_ang_vel_x.append(obs[:, 46].cpu().numpy())
-                drone_2_ang_vel_y.append(obs[:, 47].cpu().numpy())
-                drone_2_ang_vel_z.append(obs[:, 48].cpu().numpy())
-                drone_3_ang_vel_x.append(obs[:, 49].cpu().numpy())
-                drone_3_ang_vel_y.append(obs[:, 50].cpu().numpy())
-                drone_3_ang_vel_z.append(obs[:, 51].cpu().numpy())
+                drone_1_ang_vel_x.append(obs_flat[:, 43].cpu().numpy())
+                drone_1_ang_vel_y.append(obs_flat[:, 44].cpu().numpy())
+                drone_1_ang_vel_z.append(obs_flat[:, 45].cpu().numpy())
+                drone_2_ang_vel_x.append(obs_flat[:, 46].cpu().numpy())
+                drone_2_ang_vel_y.append(obs_flat[:, 47].cpu().numpy())
+                drone_2_ang_vel_z.append(obs_flat[:, 48].cpu().numpy())
+                drone_3_ang_vel_x.append(obs_flat[:, 49].cpu().numpy())
+                drone_3_ang_vel_y.append(obs_flat[:, 50].cpu().numpy())
+                drone_3_ang_vel_z.append(obs_flat[:, 51].cpu().numpy())
 
                 # append cable angles
-                cable_angle_1_w.append(obs[:, 92].cpu().numpy())
-                cable_angle_1_x.append(obs[:, 93].cpu().numpy())
-                cable_angle_1_y.append(obs[:, 94].cpu().numpy())
-                cable_angle_1_z.append(obs[:, 95].cpu().numpy())
+                cable_angle_1_w.append(obs_flat[:, 92].cpu().numpy())
+                cable_angle_1_x.append(obs_flat[:, 93].cpu().numpy())
+                cable_angle_1_y.append(obs_flat[:, 94].cpu().numpy())
+                cable_angle_1_z.append(obs_flat[:, 95].cpu().numpy())
 
-                cable_angle_2_w.append(obs[:, 96].cpu().numpy())
-                cable_angle_2_x.append(obs[:, 97].cpu().numpy())
-                cable_angle_2_y.append(obs[:, 98].cpu().numpy())
-                cable_angle_2_z.append(obs[:, 99].cpu().numpy())
+                cable_angle_2_w.append(obs_flat[:, 96].cpu().numpy())
+                cable_angle_2_x.append(obs_flat[:, 97].cpu().numpy())
+                cable_angle_2_y.append(obs_flat[:, 98].cpu().numpy())
+                cable_angle_2_z.append(obs_flat[:, 99].cpu().numpy())
 
-                cable_angle_3_w.append(obs[:, 100].cpu().numpy())
-                cable_angle_3_x.append(obs[:, 101].cpu().numpy())
-                cable_angle_3_y.append(obs[:, 102].cpu().numpy())
-                cable_angle_3_z.append(obs[:, 103].cpu().numpy())
+                cable_angle_3_w.append(obs_flat[:, 100].cpu().numpy())
+                cable_angle_3_x.append(obs_flat[:, 101].cpu().numpy())
+                cable_angle_3_y.append(obs_flat[:, 102].cpu().numpy())
+                cable_angle_3_z.append(obs_flat[:, 103].cpu().numpy())
 
                 # append payload errors
-                payload_pos_error_x.append(obs[:, 52].cpu().numpy())
-                payload_pos_error_y.append(obs[:, 53].cpu().numpy())
-                payload_pos_error_z.append(obs[:, 54].cpu().numpy())
-                payload_quat_error_w.append(obs[:, 55].cpu().numpy())
-                payload_quat_error_x.append(obs[:, 56].cpu().numpy())
-                payload_quat_error_y.append(obs[:, 57].cpu().numpy())
-                payload_quat_error_z.append(obs[:, 58].cpu().numpy())
+                payload_pos_error_x.append(obs_flat[:, 52].cpu().numpy())
+                payload_pos_error_y.append(obs_flat[:, 53].cpu().numpy())
+                payload_pos_error_z.append(obs_flat[:, 54].cpu().numpy())
+                payload_quat_error_w.append(obs_flat[:, 55].cpu().numpy())
+                payload_quat_error_x.append(obs_flat[:, 56].cpu().numpy())
+                payload_quat_error_y.append(obs_flat[:, 57].cpu().numpy())
+                payload_quat_error_z.append(obs_flat[:, 58].cpu().numpy())
 
                 if dones | timestep == args_cli.video_length:
                     break

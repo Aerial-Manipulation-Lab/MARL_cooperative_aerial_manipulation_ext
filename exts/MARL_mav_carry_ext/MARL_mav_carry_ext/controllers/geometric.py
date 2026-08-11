@@ -6,11 +6,10 @@ from isaaclab.utils.math import (
     euler_xyz_from_quat,
     matrix_from_quat,
     normalize,
+    quat_apply,
     quat_from_matrix,
     quat_inv,
     quat_mul,
-    quat_rotate,
-    quat_rotate_inverse,
 )
 
 
@@ -150,7 +149,7 @@ class GeometricController:
 
         # acceleration command
         if self.control_mode == "geometric":
-            p_ref_cg = setpoint["pos"] - quat_rotate(state["quat"], self.p_offset)
+            p_ref_cg = setpoint["pos"] - quat_apply(state["quat"], self.p_offset)
             pos_error = torch.clamp(p_ref_cg - state["pos"], -self.p_err_max_, self.p_err_max_)
             vel_error = torch.clamp(setpoint["lin_vel"] - state["lin_vel"], -self.v_err_max_, self.v_err_max_)
             des_acc = self.kp_acc * pos_error + self.kd_acc * vel_error + setpoint["lin_acc"]
@@ -160,7 +159,7 @@ class GeometricController:
 
         # estimation of load acceleration in world frame
         acc_load = (
-            state["lin_acc"] - self.gravity - quat_rotate(state["quat"], current_collective_thrust / self.falcon_mass)
+            state["lin_acc"] - self.gravity - quat_apply(state["quat"], current_collective_thrust / self.falcon_mass)
         )
 
         if self.debug:
@@ -213,14 +212,14 @@ class GeometricController:
         zeros = torch.zeros((self.num_envs, 1), device=self.device)
         q_e_red = norm_factor * torch.cat((q_e_w * q_e_x - q_e_y * q_e_z, q_e_w * q_e_y + q_e_x * q_e_z, zeros), dim=-1)
         q_e_yaw = norm_factor * torch.cat([zeros, zeros, q_e_z], dim=-1)
-        ang_vel_body = quat_rotate(quat_inv(state["quat"]), state["ang_vel"])
+        ang_vel_body = quat_apply(quat_inv(state["quat"]), state["ang_vel"])
         alpha_b_des = (
             self.kp_att_xy * q_e_red
             + self.kp_att_z * torch.sign(q_e_w) * q_e_yaw
             + self.kp_rate * (omega_b_ref - ang_vel_body)
         )
 
-        # omega = quat_rotate(quat_inv(state["quat"]), state["ang_vel"])  # body rates # normally from IMU
+        # omega = quat_apply(quat_inv(state["quat"]), state["ang_vel"])  # body rates # normally from IMU
         # mu_ndi = torch.zeros((self.num_envs, 4), device=self.device)
         # collective_thrust_des_magntiude = torch.norm(acc_cmd, dim=1) * self.falcon_mass
         # mu_ndi[:, 0] = torch.clamp(collective_thrust_des_magntiude, self.thrust_min_collective, self.thrust_max_collective)
@@ -228,7 +227,7 @@ class GeometricController:
         # moments = self.inertia_mat.matmul(alpha_b_des.transpose(0, 1)).transpose(0, 1) + torch.linalg.cross(
         #     omega, self.inertia_mat.matmul(omega.transpose(0, 1)).transpose(0, 1)
         # ) - torch.linalg.cross(
-        # self.p_offset, quat_rotate(quat_inv(state["quat"]), acc_load * self.falcon_mass)) # M_load in body frame
+        # self.p_offset, quat_apply(quat_inv(state["quat"]), acc_load * self.falcon_mass)) # M_load in body frame
 
         # mu_ndi[:, 1:] = moments
         # thrusts = self.G_1_inv.matmul(mu_ndi.transpose(0, 1))

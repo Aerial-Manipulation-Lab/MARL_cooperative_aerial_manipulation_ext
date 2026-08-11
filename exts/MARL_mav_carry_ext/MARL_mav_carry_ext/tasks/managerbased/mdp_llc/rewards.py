@@ -8,7 +8,7 @@ from isaaclab.assets import RigidObject
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
-from isaaclab.utils.math import euler_xyz_from_quat, quat_error_magnitude, quat_inv, quat_mul, quat_rotate_inverse
+from isaaclab.utils.math import euler_xyz_from_quat, quat_error_magnitude, quat_inv, quat_mul
 
 from .marker_utils import DRONE_POS_MARKER_CFG
 from .utils import *

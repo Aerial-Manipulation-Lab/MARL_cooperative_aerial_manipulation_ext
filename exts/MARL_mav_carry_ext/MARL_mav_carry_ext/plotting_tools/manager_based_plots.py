@@ -7,7 +7,7 @@ import torch
 
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.utils.math import quat_rotate
+from isaaclab.utils.math import quat_apply
 
 
 class ManagerBasedPlotter:
@@ -84,7 +84,7 @@ class ManagerBasedPlotter:
         drone_orientation = self.robot.data.body_com_state_w[:, self.drone_idx, 3:7][0]
         drone_vel = self.robot.data.body_com_state_w[:, self.drone_idx, 7:10][0]
         drone_ang_vel = self.robot.data.body_com_state_w[:, self.drone_idx, 10:][0]
-        drone_BR = quat_rotate(drone_orientation.unsqueeze(0), drone_ang_vel.unsqueeze(0))[0]
+        drone_BR = quat_apply(drone_orientation.unsqueeze(0), drone_ang_vel.unsqueeze(0))[0]
         drone_acc = self.robot.data.body_acc_w[:, self.drone_idx, :3][0]
         drone_ang_acc = self.robot.data.body_acc_w[:, self.drone_idx, 3:6][0]
         drone_jerk = self.env.action_manager._terms["low_level_action"]._drone_jerk[0]

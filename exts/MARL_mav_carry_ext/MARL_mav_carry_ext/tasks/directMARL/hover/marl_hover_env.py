@@ -27,12 +27,12 @@ from isaaclab.utils.math import (
     compute_pose_error,
     euler_xyz_from_quat,
     matrix_from_quat,
+    quat_apply,
     quat_error_magnitude,
     quat_from_angle_axis,
     quat_from_euler_xyz,
     quat_inv,
     quat_mul,
-    quat_rotate,
     quat_unique,
     sample_uniform,
 )
@@ -285,9 +285,13 @@ class MARLHoverEnv(DirectMARLEnv):
         self._ll_counter += 1
 
         # apply torques induced by rotors to each body
-        self.robot.set_external_force_and_torque(torch.zeros_like(self._moments), self._moments, self._falcon_idx)
+        self.robot.set_external_force_and_torque(
+            torch.zeros_like(self._moments), self._moments, body_ids=self._falcon_idx
+        )
         # apply forces to each rotor
-        self.robot.set_external_force_and_torque(self._forces, torch.zeros_like(self._forces), self._falcon_rotor_idx)
+        self.robot.set_external_force_and_torque(
+            self._forces, torch.zeros_like(self._forces), body_ids=self._falcon_rotor_idx
+        )
 
     def _get_observations(self) -> dict[str, torch.Tensor]:
 
@@ -773,8 +777,8 @@ class MARLHoverEnv(DirectMARLEnv):
 
     def _downwash_reward(self):
         # Plane equation for the payload
-        x_len_payload_env = quat_rotate(self.load_orientation, self.load_length_x)
-        y_len_payload_env = quat_rotate(self.load_orientation, self.load_length_y)
+        x_len_payload_env = quat_apply(self.load_orientation, self.load_length_x)
+        y_len_payload_env = quat_apply(self.load_orientation, self.load_length_y)
         edge_payload_x = self.load_position + x_len_payload_env
         edge_payload_y = self.load_position + y_len_payload_env
         plane_vec1 = edge_payload_x - self.load_position
@@ -783,7 +787,7 @@ class MARLHoverEnv(DirectMARLEnv):
         d = torch.sum(normal * self.load_position, dim=-1).unsqueeze(-1).unsqueeze(-1)  # Shape (num_envs, 1, 1)
 
         # Line equations for each drone's thrust direction
-        thrust_directions = quat_rotate(
+        thrust_directions = quat_apply(
             self.drone_orientations.view(-1, 4),
             torch.tensor([[0, 0, 1.0]] * self.num_envs * self._num_drones, device=self.device),
         ).view(self.num_envs, self._num_drones, 3)

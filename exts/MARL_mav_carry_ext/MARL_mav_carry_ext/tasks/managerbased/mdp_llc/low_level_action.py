@@ -227,11 +227,11 @@ class LowLevelAction(ActionTerm):
 
         # apply torques induced by rotors to each body
         self._env.scene["robot"].set_external_force_and_torque(
-            torch.zeros_like(self._moments), self._moments, self._falcon_idx
+            torch.zeros_like(self._moments), self._moments, body_ids=self._falcon_idx
         )
         # apply forces to each rotor
         self._env.scene["robot"].set_external_force_and_torque(
-            self._forces, torch.zeros_like(self._forces), self._body_ids
+            self._forces, torch.zeros_like(self._forces), body_ids=self._body_ids
         )
 
     """

@@ -193,7 +193,9 @@ class FalconEnv(DirectRLEnv):
         )
 
         # apply torques induced by rotors to each body
-        self._robot.set_external_force_and_torque(torch.zeros_like(self._moments), self._moments, self._falcon_idx)
+        self._robot.set_external_force_and_torque(
+            torch.zeros_like(self._moments), self._moments, body_ids=self._falcon_idx
+        )
 
     def _get_observations(self) -> dict:
         # observations from the example, not real ones
