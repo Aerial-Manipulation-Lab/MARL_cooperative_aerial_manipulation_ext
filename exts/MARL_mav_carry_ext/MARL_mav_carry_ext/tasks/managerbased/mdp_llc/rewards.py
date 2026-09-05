@@ -8,7 +8,7 @@ from isaaclab.assets import RigidObject
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
-from isaaclab.utils.math import euler_xyz_from_quat, quat_error_magnitude, quat_inv, quat_mul, quat_rotate_inverse
+from isaaclab.utils.math import euler_xyz_from_quat, quat_error_magnitude, quat_inv, quat_mul, quat_apply_inverse
 
 from .marker_utils import DRONE_POS_MARKER_CFG
 from .utils import *
@@ -34,7 +34,7 @@ def separation_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneE
     """Separation reward function."""
     safe_distance = 0.44  # smallest distance where drones are just upright
     robot = env.scene[asset_cfg.name]
-    drone_pos_world_frame = robot.data.body_com_state_w[:, drone_idx, :3]
+    drone_pos_world_frame = robot.data.body_com_state_w.torch[:, drone_idx, :3]
     rpos = get_drone_rpos(drone_pos_world_frame)
     pdist = get_drone_pdist(rpos)
     separation = pdist.min(dim=-1).values.min(dim=-1).values  # get the smallest distance between drones in the swarm
@@ -47,7 +47,7 @@ def separation_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneE
 def track_drone_reference(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Reward for tracking the drone reference."""
     robot = env.scene[asset_cfg.name]
-    drone_pos_world = robot.data.body_com_state_w[:, drone_idx, :3]
+    drone_pos_world = robot.data.body_com_state_w.torch[:, drone_idx, :3]
     drone_pos_env = drone_pos_world - env.scene.env_origins.unsqueeze(1)
     desired_pos = env.action_manager._terms["low_level_action"]._desired_position
     # compute the error
@@ -68,7 +68,7 @@ def track_payload_pos_command_linear(
         bbox: The bounding box half size for the linear kernel.
     """
     robot: RigidObject = env.scene[asset_cfg.name]
-    payload_pos_world = robot.data.body_com_state_w[:, payload_idx, :3].squeeze(1)
+    payload_pos_world = robot.data.body_com_state_w.torch[:, payload_idx, :3].squeeze(1)
     payload_pos_env = payload_pos_world - env.scene.env_origins
     desired_pos = env.command_manager.get_command(command_name)[..., :3]
     # compute the error
@@ -87,7 +87,7 @@ def track_payload_pos_command(
 ) -> torch.Tensor:
     """Reward tracking of payload position commands with exponentional kernel."""
     robot: RigidObject = env.scene[asset_cfg.name]
-    payload_pos_world = robot.data.body_com_state_w[:, payload_idx, :3].squeeze(1)
+    payload_pos_world = robot.data.body_com_state_w.torch[:, payload_idx, :3].squeeze(1)
     payload_pos_env = payload_pos_world - env.scene.env_origins
 
     desired_pos = env.command_manager.get_command(command_name)[
@@ -113,7 +113,7 @@ def track_payload_orientation_command(
 ) -> torch.Tensor:
     """Reward tracking of payload orientation commands."""
     robot: RigidObject = env.scene[asset_cfg.name]
-    payload_quat = robot.data.body_com_state_w[:, payload_idx, 3:7].squeeze(1)
+    payload_quat = robot.data.body_com_state_w.torch[:, payload_idx, 3:7].squeeze(1)
     desired_quat = env.command_manager.get_command(command_name)[..., 3:7]
     # compute the error
     # for the trajectory case
@@ -146,7 +146,7 @@ def track_payload_lin_vel_command(
 ) -> torch.Tensor:
     """Reward tracking of payload linear velocity commands."""
     robot: RigidObject = env.scene[asset_cfg.name]
-    payload_lin_vel = robot.data.body_com_state_w[:, payload_idx, 7:10].squeeze(1)
+    payload_lin_vel = robot.data.body_com_state_w.torch[:, payload_idx, 7:10].squeeze(1)
 
     desired_vel = env.command_manager.get_command(command_name)[..., 7:10]
 
@@ -167,7 +167,7 @@ def track_payload_ang_vel_command(
 ) -> torch.Tensor:
     """Reward tracking of payload angular velocity commands."""
     robot: RigidObject = env.scene[asset_cfg.name]
-    payload_ang_vel = robot.data.body_com_state_w[:, payload_idx, 10:].squeeze(1)
+    payload_ang_vel = robot.data.body_com_state_w.torch[:, payload_idx, 10:].squeeze(1)
 
     desired_vel = env.command_manager.get_command(command_name)[..., 10:13]
 
@@ -198,7 +198,7 @@ def track_payload_twist_command(
 def upright_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Reward for keeping the payload up."""
     robot = env.scene[asset_cfg.name]
-    payload_orientation = robot.data.body_com_state_w[:, payload_idx, 3:7].squeeze(1)
+    payload_orientation = robot.data.body_com_state_w.torch[:, payload_idx, 3:7].squeeze(1)
     payload_up = quat_axis(payload_orientation, axis=2)
     up = payload_up[:, 2]
     reward_up = torch.square((up + 1) / 2)
@@ -215,7 +215,7 @@ def spinnage_reward_payload(
 ) -> torch.Tensor:
     """Reward for minimizing the angular velocities of the payload."""
     robot = env.scene[asset_cfg.name]
-    payload_angular_velocity = robot.data.body_com_state_w[:, payload_idx, 10:].squeeze(1).abs().sum(-1)
+    payload_angular_velocity = robot.data.body_com_state_w.torch[:, payload_idx, 10:].squeeze(1).abs().sum(-1)
     reward_spin = torch.exp(-torch.square(payload_angular_velocity))
 
     assert reward_spin.shape == (env.scene.num_envs,)
@@ -225,7 +225,7 @@ def spinnage_reward_payload(
 def spinnage_reward_drones(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Reward for minimizing the angular velocities of the drones."""
     robot = env.scene[asset_cfg.name]
-    drone_angular_velocity_magnitude = torch.norm(robot.data.body_com_state_w[:, drone_idx, 10:], dim=-1)
+    drone_angular_velocity_magnitude = torch.norm(robot.data.body_com_state_w.torch[:, drone_idx, 10:], dim=-1)
     max_ang_vels = torch.max(drone_angular_velocity_magnitude, dim=-1)[0]
     reward_spin = torch.exp(-torch.square(max_ang_vels))
 
@@ -236,7 +236,7 @@ def spinnage_reward_drones(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = S
 def swing_reward(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Reward for minimizing the linear velocities of the payload."""
     robot = env.scene[asset_cfg.name]
-    payload_linear_velocity = robot.data.body_com_state_w[:, payload_idx, 7:10].squeeze(1).abs().sum(-1)
+    payload_linear_velocity = robot.data.body_com_state_w.torch[:, payload_idx, 7:10].squeeze(1).abs().sum(-1)
     reward_swing = torch.exp(-torch.square(payload_linear_velocity))
 
     assert reward_swing.shape == (env.scene.num_envs,)
@@ -309,8 +309,8 @@ def angle_cable_load(
     """Reward for desired angle between load and cables"""
     robot = env.scene[asset_cfg.name]
     reward_weight = 1.2
-    rope_orientations_world = robot.data.body_com_state_w[:, base_rope_idx, 3:7].view(-1, 4)
-    payload_orientation_world = robot.data.body_com_state_w[:, payload_idx, 3:7].repeat(1, 3, 1).view(-1, 4)
+    rope_orientations_world = robot.data.body_com_state_w.torch[:, base_rope_idx, 3:7].view(-1, 4)
+    payload_orientation_world = robot.data.body_com_state_w.torch[:, payload_idx, 3:7].repeat(1, 3, 1).view(-1, 4)
     payload_orientation_inv = quat_inv(payload_orientation_world)
     rope_orientations_payload = quat_mul(
         payload_orientation_inv, rope_orientations_world
@@ -334,12 +334,12 @@ def downwash_reward(
     robot = env.scene[asset_cfg.name]
 
     # Plane equation for the payload
-    payload_pose_env = robot.data.body_com_state_w[:, payload_idx, :3].squeeze(1) - env.scene.env_origins
-    payload_orientation = robot.data.body_com_state_w[:, payload_idx, 3:7].squeeze(1)
+    payload_pose_env = robot.data.body_com_state_w.torch[:, payload_idx, :3].squeeze(1) - env.scene.env_origins
+    payload_orientation = robot.data.body_com_state_w.torch[:, payload_idx, 3:7].squeeze(1)
     payload_length_x = torch.tensor([[0.275, 0, 0]] * env.num_envs, device=env.sim.device)
     payload_length_y = torch.tensor([[0, 0.275, 0]] * env.num_envs, device=env.sim.device)
-    x_len_payload_env = quat_rotate(payload_orientation, payload_length_x)
-    y_len_payload_env = quat_rotate(payload_orientation, payload_length_y)
+    x_len_payload_env = quat_apply(payload_orientation, payload_length_x)
+    y_len_payload_env = quat_apply(payload_orientation, payload_length_y)
     edge_payload_x = payload_pose_env + x_len_payload_env
     edge_payload_y = payload_pose_env + y_len_payload_env
     plane_vec1 = edge_payload_x - payload_pose_env
@@ -348,9 +348,9 @@ def downwash_reward(
     d = torch.sum(normal * payload_pose_env, dim=-1).unsqueeze(-1).unsqueeze(-1)  # Shape (num_envs, 1, 1)
 
     # Line equations for each drone's thrust direction
-    drone_pos_env = robot.data.body_com_state_w[:, drone_idx, :3] - env.scene.env_origins.unsqueeze(1)
-    drone_orientation = robot.data.body_com_state_w[:, drone_idx, 3:7].view(-1, 4)
-    thrust_directions = quat_rotate(
+    drone_pos_env = robot.data.body_com_state_w.torch[:, drone_idx, :3] - env.scene.env_origins.unsqueeze(1)
+    drone_orientation = robot.data.body_com_state_w.torch[:, drone_idx, 3:7].view(-1, 4)
+    thrust_directions = quat_apply(
         drone_orientation, torch.tensor([[0, 0, 1.0]] * env.num_envs * num_drones, device=env.sim.device)
     ).view(env.num_envs, num_drones, 3)
 
@@ -385,14 +385,14 @@ def obstacle_penalty(
     """Penalty for getting close to the obstacle."""
     robot = env.scene[asset_cfg.name]
     obstacle = env.scene[obstacle_cfg.name]
-    payload_pos_env = robot.data.body_com_state_w[:, payload_idx, :3] - env.scene.env_origins.unsqueeze(1)
-    drones_pos_env = robot.data.body_com_state_w[:, drone_idx, :3] - env.scene.env_origins.unsqueeze(1)
-    obstacle_pos = obstacle.data.body_com_state_w[:, 0, :3].unsqueeze(1) - env.scene.env_origins.unsqueeze(1)
+    payload_pos_env = robot.data.body_com_state_w.torch[:, payload_idx, :3] - env.scene.env_origins.unsqueeze(1)
+    drones_pos_env = robot.data.body_com_state_w.torch[:, drone_idx, :3] - env.scene.env_origins.unsqueeze(1)
+    obstacle_pos = obstacle.data.body_com_state_w.torch[:, 0, :3].unsqueeze(1) - env.scene.env_origins.unsqueeze(1)
     all_bodies_env = torch.cat((payload_pos_env, drones_pos_env), dim=1)
     rpos = torch.abs(all_bodies_env - obstacle_pos)
     cuboid_dims = torch.tensor([[1.0, 1.75, 2.5]] * env.num_envs, device=env.sim.device).unsqueeze(1)  # half lengths
     # check if any of the bodies are inside the cuboid
-    cuboid_dims_world = quat_rotate(obstacle.data.body_com_state_w[:, 0, 3:7].unsqueeze(1), cuboid_dims)
+    cuboid_dims_world = quat_apply(obstacle.data.body_com_state_w.torch[:, 0, 3:7].unsqueeze(1), cuboid_dims)
     is_inside_cuboid = torch.all(
         rpos <= cuboid_dims_world, dim=-1
     )  # Shape (num_envs, num_bodies) true or false for each body

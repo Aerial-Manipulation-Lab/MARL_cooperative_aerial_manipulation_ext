@@ -161,14 +161,14 @@ class LowLevelAction(ActionTerm):
             all_thrusts = []
             all_moments = []
 
-            drone_positions = self._env.scene["robot"].data.body_com_state_w[
+            drone_positions = self._env.scene["robot"].data.body_com_state_w.torch[
                 :, self._falcon_idx, :3
             ] - self._env.scene.env_origins.unsqueeze(1)
-            drone_orientations = self._env.scene["robot"].data.body_com_state_w[:, self._falcon_idx, 3:7]
-            drone_linear_velocities = self._env.scene["robot"].data.body_com_state_w[:, self._falcon_idx, 7:10]
-            drone_angular_velocities = self._env.scene["robot"].data.body_com_state_w[:, self._falcon_idx, 10:13]
-            drone_linear_accelerations = self._env.scene["robot"].data.body_acc_w[:, self._falcon_idx, :3]
-            drone_angular_accelerations = self._env.scene["robot"].data.body_acc_w[:, self._falcon_idx, 3:6]
+            drone_orientations = self._env.scene["robot"].data.body_com_state_w.torch[:, self._falcon_idx, 3:7]
+            drone_linear_velocities = self._env.scene["robot"].data.body_com_state_w.torch[:, self._falcon_idx, 7:10]
+            drone_angular_velocities = self._env.scene["robot"].data.body_com_state_w.torch[:, self._falcon_idx, 10:13]
+            drone_linear_accelerations = self._env.scene["robot"].data.body_acc_w.torch[:, self._falcon_idx, :3]
+            drone_angular_accelerations = self._env.scene["robot"].data.body_acc_w.torch[:, self._falcon_idx, 3:6]
 
             # Apply Gaussian noise with correctly sized tensors
             self.drone_positions[:] = drone_positions  # + torch.randn_like(drone_positions) * self.position_noise_std
@@ -225,14 +225,13 @@ class LowLevelAction(ActionTerm):
             self._ll_counter = 0
         self._ll_counter += 1
 
+        # Isaac Lab 3.0: reset once, then compose both wrenches (see marl_hover_env for why).
+        robot = self._env.scene["robot"]
+        robot.permanent_wrench_composer.reset()
         # apply torques induced by rotors to each body
-        self._env.scene["robot"].set_external_force_and_torque(
-            torch.zeros_like(self._moments), self._moments, self._falcon_idx
-        )
+        robot.permanent_wrench_composer.add_forces_and_torques(torques=self._moments, body_ids=self._falcon_idx)
         # apply forces to each rotor
-        self._env.scene["robot"].set_external_force_and_torque(
-            self._forces, torch.zeros_like(self._forces), self._body_ids
-        )
+        robot.permanent_wrench_composer.add_forces_and_torques(forces=self._forces, body_ids=self._body_ids)
 
     """
     visualizations
@@ -283,8 +282,8 @@ class LowLevelAction(ActionTerm):
 
         # Get drone positions and orientations
         rotor_idx = self._body_ids
-        rotor_pos_world_frame = self._robot.data.body_com_state_w[:, rotor_idx, :3].view(-1, 3)
-        rotor_orientation = self._robot.data.body_com_state_w[:, rotor_idx, 3:7].view(-1, 4)
+        rotor_pos_world_frame = self._robot.data.body_com_state_w.torch[:, rotor_idx, :3].view(-1, 3)
+        rotor_orientation = self._robot.data.body_com_state_w.torch[:, rotor_idx, 3:7].view(-1, 4)
 
         # marker indices for multiple envs
         marker_indices = [0] * self.num_envs * len(rotor_idx)

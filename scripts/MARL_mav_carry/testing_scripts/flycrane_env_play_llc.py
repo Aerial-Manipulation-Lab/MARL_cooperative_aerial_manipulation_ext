@@ -139,7 +139,7 @@ def main():
 
     while simulation_app.is_running():
         with torch.inference_mode():
-            falcon_pos = env.scene["robot"].data.body_com_state_w[:, [20, 27, 34], :3]
+            falcon_pos = env.scene["robot"].data.body_com_state_w.torch[:, [20, 27, 34], :3]
             # reset
             if count % 500 == 0:
                 env.reset()

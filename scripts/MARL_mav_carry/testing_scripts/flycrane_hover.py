@@ -61,14 +61,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             sim_time = 0.0
             count = 0
             # reset dof state
-            joint_pos, joint_vel = robot.data.default_joint_pos, robot.data.default_joint_vel
+            joint_pos, joint_vel = robot.data.default_joint_pos.torch, robot.data.default_joint_vel.torch
             robot.write_joint_state_to_sim(joint_pos, joint_vel)
             # compensate for env root state
-            root_state = robot.data.default_root_state.clone()
+            root_state = robot.data.default_root_state.torch.clone()
             root_state[:, :3] += scene.env_origins
             robot.write_root_state_to_sim(root_state)
 
-            robot.write_root_velocity_to_sim(robot.data.default_root_state[:, 7:])
+            robot.write_root_velocity_to_sim(robot.data.default_root_state.torch[:, 7:])
             robot.reset()
             # reset command
             print(">>>>>>>> Reset!")

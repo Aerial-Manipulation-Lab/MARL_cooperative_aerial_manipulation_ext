@@ -77,7 +77,7 @@ def main():
     sim_dt = sim.get_physics_dt()
     sim_time = 0.0
     count = 0
-    robot_root_state = robot.data.default_root_state[:, :7]
+    robot_root_state = robot.data.default_root_state.torch[:, :7]
     robot_root_state[0, :3] += torch.tensor([1.5, 0.5, 0.42])
     robot_root_state[0, 3:7] = torch.tensor([0.4645017, 0.1911519, 0.4645017, 0.7293403])
     robot_root_state[1, :3] += torch.tensor([-1.5, 0.5, 0.42])
@@ -89,14 +89,14 @@ def main():
             sim_time = 0.0
             count = 0
             # reset dof state
-            joint_pos, joint_vel = robot.data.default_joint_pos, robot.data.default_joint_vel
+            joint_pos, joint_vel = robot.data.default_joint_pos.torch, robot.data.default_joint_vel.torch
             robot.write_joint_state_to_sim(joint_pos, joint_vel)
             robot.write_root_pose_to_sim(robot_root_state)
-            robot.write_root_velocity_to_sim(robot.data.default_root_state[:, 7:])
+            robot.write_root_velocity_to_sim(robot.data.default_root_state.torch[:, 7:])
             robot.reset()
             # reset command
             print(">>>>>>>> Reset!")
-        robot_state = robot.data.body_com_state_w[0, prop_body_ids, :]
+        robot_state = robot.data.body_com_state_w.torch[0, prop_body_ids, :]
         print(f"robot position: {robot_state[0, :3]}")
         print(f"robot orientation: {robot_state[0, 3:7]}")
         print(f"robot linear velocity: {robot_state[0, 7:10]}")

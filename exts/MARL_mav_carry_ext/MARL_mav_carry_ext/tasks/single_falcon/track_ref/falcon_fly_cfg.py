@@ -107,7 +107,7 @@ class FalconEnv(DirectRLEnv):
             ]
         }
 
-        self._robot_mass = self._robot.root_physx_view.get_masses()[0].sum()
+        self._robot_mass = self._robot.data.body_mass.torch[0].sum()
         self._gravity_magnitude = torch.tensor(self.sim.cfg.gravity, device=self.device).norm()
         self._robot_weight = (self._robot_mass * self._gravity_magnitude).item()
         self.set_debug_vis(self.cfg.debug_vis)
@@ -188,24 +188,27 @@ class FalconEnv(DirectRLEnv):
             self._ll_counter = 0
 
         self._ll_counter += 1
-        self._robot.set_external_force_and_torque(
-            self._forces, torch.zeros_like(self._forces), body_ids=self._rotor_idx
+        # Isaac Lab 3.0: reset once, then compose both wrenches (see marl_hover_env for why).
+        self._robot.permanent_wrench_composer.reset()
+        self._robot.permanent_wrench_composer.add_forces_and_torques(
+            forces=self._forces, body_ids=self._rotor_idx
         )
-
         # apply torques induced by rotors to each body
-        self._robot.set_external_force_and_torque(torch.zeros_like(self._moments), self._moments, self._falcon_idx)
+        self._robot.permanent_wrench_composer.add_forces_and_torques(
+            torques=self._moments, body_ids=self._falcon_idx
+        )
 
     def _get_observations(self) -> dict:
         # observations from the example, not real ones
         drone_idx = self._robot.find_bodies("Falcon_base_link")[0]
         obs = torch.cat(
             [
-                self._robot.data.root_pos_w,
-                self._robot.data.root_quat_w,
-                self._robot.data.root_lin_vel_w,
-                self._robot.data.root_ang_vel_w,
-                self._robot.data.body_lin_acc_w[:, drone_idx].squeeze(1),
-                self._robot.data.body_ang_acc_w[:, drone_idx].squeeze(1),
+                self._robot.data.root_pos_w.torch,
+                self._robot.data.root_quat_w.torch,
+                self._robot.data.root_lin_vel_w.torch,
+                self._robot.data.root_ang_vel_w.torch,
+                self._robot.data.body_lin_acc_w.torch[:, drone_idx].squeeze(1),
+                self._robot.data.body_ang_acc_w.torch[:, drone_idx].squeeze(1),
             ],
             dim=-1,
         )
@@ -219,7 +222,7 @@ class FalconEnv(DirectRLEnv):
 
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
         time_out = self.episode_length_buf >= self.max_episode_length - 1
-        died = torch.logical_or(self._robot.data.root_pos_w[:, 2] < 0.1, self._robot.data.root_pos_w[:, 2] > 5.0)
+        died = torch.logical_or(self._robot.data.root_pos_w.torch[:, 2] < 0.1, self._robot.data.root_pos_w.torch[:, 2] > 5.0)
         return died, time_out
 
     def _reset_idx(self, env_ids: torch.Tensor | None):
@@ -228,7 +231,7 @@ class FalconEnv(DirectRLEnv):
 
         # Logging
         final_distance_to_goal = torch.linalg.norm(
-            self._desired_pos_w[env_ids] - self._robot.data.root_pos_w[env_ids], dim=1
+            self._desired_pos_w[env_ids] - self._robot.data.root_pos_w.torch[env_ids], dim=1
         ).mean()
         extras = dict()
         for key in self._episode_sums.keys():
@@ -252,19 +255,18 @@ class FalconEnv(DirectRLEnv):
         self._actions[env_ids] = 0.0
 
         # Reset robot state
-        joint_pos = self._robot.data.default_joint_pos[env_ids]
-        joint_vel = self._robot.data.default_joint_vel[env_ids]
-        default_root_state = self._robot.data.default_root_state[env_ids] + torch.tensor(
+        joint_pos = self._robot.data.default_joint_pos.torch[env_ids]
+        joint_vel = self._robot.data.default_joint_vel.torch[env_ids]
+        default_root_state = self._robot.data.default_root_state.torch[env_ids] + torch.tensor(
             [[0, 2.0, 0]], device=self.device
         )
         default_root_state[:, :3] += self._terrain.env_origins[env_ids]
-        self._robot.write_root_pose_to_sim(default_root_state[:, :7], env_ids)
-        self._robot.write_root_velocity_to_sim(default_root_state[:, 7:], env_ids)
-        self._robot.write_joint_state_to_sim(joint_pos, joint_vel, None, env_ids)
+        self._robot.write_root_pose_to_sim_index(root_pose=default_root_state[:, :7], env_ids=env_ids)
+        self._robot.write_root_velocity_to_sim_index(root_velocity=default_root_state[:, 7:], env_ids=env_ids)
+        self._robot.write_joint_position_to_sim_index(position=joint_pos, env_ids=env_ids)
+        self._robot.write_joint_velocity_to_sim_index(velocity=joint_vel, env_ids=env_ids)
 
-        self._robot.set_external_force_and_torque(
-            torch.zeros(self.num_envs, 3, 3, device=self.device), torch.zeros_like(self._forces)
-        )
+        self._robot.permanent_wrench_composer.reset()
 
     def _set_debug_vis_impl(self, debug_vis: bool):
         # create markers if necessary for the first tome
