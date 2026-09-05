@@ -16,7 +16,7 @@ from isaaclab.envs import DirectRLEnv, DirectRLEnvCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.terrains import TerrainImporterCfg
-from isaaclab.utils import configclass
+from isaaclab.utils.configclass import configclass  # explicit: isaaclab.utils lazy-exports this name and it can be shadowed by the submodule
 from isaaclab.utils.math import euler_xyz_from_quat, normalize, quat_from_angle_axis
 
 from isaaclab.markers import CUBOID_MARKER_CFG, VisualizationMarkers  # isort: skip
