@@ -71,3 +71,44 @@ def test_env_resets_and_steps(gym, task_id, num_agents):
         assert state.shape == (2, unwrapped.state_space.shape[0])
     finally:
         env.close()
+
+
+MANAGER_BASED_TASKS = [
+    "Isaac-flycrane-payload-hovering-v0",
+    "Isaac-flycrane-payload-hovering-llc-v0",
+    "Isaac-flycrane-payload-track-v0",
+    "Isaac-flycrane-payload-obstacle-avoidance-v0",
+]
+
+
+@pytest.mark.parametrize("task_id", MANAGER_BASED_TASKS)
+def test_manager_based_env_resets_and_steps(gym, task_id):
+    """Step the manager-based tasks too.
+
+    These exercise the reward/observation/termination term functions, which the DirectMARL tasks
+    do not share. A missing import inside one of those terms only raises when the term is
+    actually called, so importing the task is not enough.
+    """
+    import torch
+    from isaaclab_tasks.utils import parse_env_cfg
+    from dataclasses import MISSING
+
+    env_cfg = parse_env_cfg(task_id, device="cuda:0", num_envs=2)
+    # `control_mode` is deliberately MISSING on the low-level action term; the play script supplies
+    # it from --control_mode, so the test has to pick one too.
+    low_level = getattr(env_cfg.actions, "low_level_action", None)
+    if low_level is not None and isinstance(getattr(low_level, "control_mode", None), type(MISSING)):
+        low_level.control_mode = "ACCBR"
+
+    env = gym.make(task_id, cfg=env_cfg)
+    try:
+        obs, _ = env.reset()
+        assert torch.isfinite(obs["policy"]).all(), "observation is non-finite after reset"
+
+        for _ in range(5):
+            actions = torch.zeros((2, env.unwrapped.action_manager.total_action_dim), device=env.unwrapped.device)
+            obs, rew, terminated, truncated, _ = env.step(actions)
+            assert torch.isfinite(obs["policy"]).all(), "observation went non-finite while stepping"
+            assert torch.isfinite(rew).all(), "reward went non-finite while stepping"
+    finally:
+        env.close()
