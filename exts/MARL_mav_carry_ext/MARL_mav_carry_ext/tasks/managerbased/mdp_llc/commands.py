@@ -58,7 +58,7 @@ class UniformPoseCommandGlobal(CommandTerm):
         # create buffers
         # -- commands: (x, y, z, qw, qx, qy, qz) in root frame
         self.pose_command_w = torch.zeros(self.num_envs, 7, device=self.device)
-        self.pose_command_w[:, 3] = 1.0
+        self.pose_command_w[:, 6] = 1.0  # XYZW: quat w
         # -- metrics
         self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["orientation_error"] = torch.zeros(self.num_envs, device=self.device)
@@ -234,7 +234,7 @@ class RefTrajectoryCommand(CommandTerm):
         # create buffers
         # -- commands: (x, y, z, qw, qx, qy, qz) in root frame
         self.pose_command_w = torch.zeros(self.num_envs, self.num_points, 7, device=self.device)
-        self.pose_command_w[..., 3] = 1.0
+        self.pose_command_w[..., 6] = 1.0  # XYZW: quat w
         self.twist_command = torch.zeros(self.num_envs, self.num_points, 6, device=self.device)
         self.acc_command = torch.zeros(self.num_envs, self.num_points, 6, device=self.device)
         self.sim_time = torch.zeros(self.num_envs, device=self.device)
@@ -451,7 +451,7 @@ class UniformTwistCommandGlobal(CommandTerm):
         # create buffers
         # -- commands: (x, y, z, qw, qx, qy, qz) in root frame
         self.pose_command_w = torch.zeros(self.num_envs, 7, device=self.device)
-        self.pose_command_w[:, 3] = 1.0
+        self.pose_command_w[:, 6] = 1.0  # XYZW: quat w
         self.twist_command = torch.zeros(self.num_envs, 6, device=self.device)
         # -- metrics
         self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)

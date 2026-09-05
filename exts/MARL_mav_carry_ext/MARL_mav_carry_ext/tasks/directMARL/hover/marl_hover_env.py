@@ -127,7 +127,7 @@ class MARLHoverEnv(DirectMARLEnv):
         # Goal terms
         # # goal buffers
         self.pose_command_w = torch.zeros(self.num_envs, 7, device=self.device)
-        self.pose_command_w[:, 3] = 1.0
+        self.pose_command_w[:, 6] = 1.0  # XYZW: quat w
 
         self.goal_pos_error = torch.zeros(self.num_envs, 3, device=self.device)
         self.difference_matrix = torch.zeros(self.num_envs, 3, 3, device=self.device)
