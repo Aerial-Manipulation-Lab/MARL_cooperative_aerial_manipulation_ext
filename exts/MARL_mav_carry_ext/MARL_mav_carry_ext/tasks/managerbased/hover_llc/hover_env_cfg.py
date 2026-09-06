@@ -16,8 +16,14 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensorCfg
-from isaaclab.utils import configclass
-from isaaclab.utils.noise import AdditiveGaussianNoiseCfg as Gnoise
+from isaaclab.utils.configclass import configclass  # explicit: isaaclab.utils lazy-exports this name and it can be shadowed by the submodule
+from isaaclab.utils.noise import GaussianNoiseCfg
+
+
+# Isaac Lab 3.0 folded AdditiveGaussianNoiseCfg into GaussianNoiseCfg(operation="add")
+def Gnoise(**kwargs):
+    return GaussianNoiseCfg(operation="add", **kwargs)
+
 
 from MARL_mav_carry_ext.assets import FLYCRANE_CFG  # isort:skip
 

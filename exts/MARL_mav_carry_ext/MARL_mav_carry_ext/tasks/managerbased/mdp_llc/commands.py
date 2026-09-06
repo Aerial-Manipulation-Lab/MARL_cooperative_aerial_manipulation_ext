@@ -16,7 +16,7 @@ from isaaclab.assets import Articulation
 from isaaclab.managers import CommandTerm, CommandTermCfg
 from isaaclab.markers import VisualizationMarkers
 from isaaclab.markers.config import FRAME_MARKER_CFG
-from isaaclab.utils import configclass
+from isaaclab.utils.configclass import configclass  # explicit: isaaclab.utils lazy-exports this name and it can be shadowed by the submodule
 from isaaclab.utils.math import combine_frame_transforms, compute_pose_error, quat_from_euler_xyz, quat_unique
 
 if TYPE_CHECKING:
@@ -58,7 +58,7 @@ class UniformPoseCommandGlobal(CommandTerm):
         # create buffers
         # -- commands: (x, y, z, qw, qx, qy, qz) in root frame
         self.pose_command_w = torch.zeros(self.num_envs, 7, device=self.device)
-        self.pose_command_w[:, 3] = 1.0
+        self.pose_command_w[:, 6] = 1.0  # XYZW: quat w
         # -- metrics
         self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
         self.metrics["orientation_error"] = torch.zeros(self.num_envs, device=self.device)
@@ -94,8 +94,8 @@ class UniformPoseCommandGlobal(CommandTerm):
         pos_error, rot_error = compute_pose_error(
             self.pose_command_w[:, :3],
             self.pose_command_w[:, 3:],
-            self.robot.data.body_com_state_w[:, self.body_idx, :3] - self._env.scene.env_origins,
-            self.robot.data.body_com_state_w[:, self.body_idx, 3:7],
+            self.robot.data.body_com_state_w.torch[:, self.body_idx, :3] - self._env.scene.env_origins,
+            self.robot.data.body_com_state_w.torch[:, self.body_idx, 3:7],
         )
         self.metrics["position_error"] = torch.norm(pos_error, dim=-1)
         self.metrics["orientation_error"] = torch.norm(rot_error, dim=-1)
@@ -162,7 +162,7 @@ class UniformPoseCommandGlobal(CommandTerm):
         # print("The tracking error of the orientation is ", self.metrics["orientation_error"])
 
         # -- current body pose
-        body_pose_w = self.robot.data.body_com_state_w[:, self.body_idx]
+        body_pose_w = self.robot.data.body_com_state_w.torch[:, self.body_idx]
         self.body_pose_visualizer.visualize(body_pose_w[:, :3], body_pose_w[:, 3:7])
 
 
@@ -234,7 +234,7 @@ class RefTrajectoryCommand(CommandTerm):
         # create buffers
         # -- commands: (x, y, z, qw, qx, qy, qz) in root frame
         self.pose_command_w = torch.zeros(self.num_envs, self.num_points, 7, device=self.device)
-        self.pose_command_w[..., 3] = 1.0
+        self.pose_command_w[..., 6] = 1.0  # XYZW: quat w
         self.twist_command = torch.zeros(self.num_envs, self.num_points, 6, device=self.device)
         self.acc_command = torch.zeros(self.num_envs, self.num_points, 6, device=self.device)
         self.sim_time = torch.zeros(self.num_envs, device=self.device)
@@ -275,24 +275,24 @@ class RefTrajectoryCommand(CommandTerm):
         pos_error, rot_error = compute_pose_error(
             self.pose_command_w[:, 0, :3],
             self.pose_command_w[:, 0, 3:],
-            self.robot.data.body_com_state_w[:, self.body_idx, :3] - self._env.scene.env_origins,
-            self.robot.data.body_com_state_w[:, self.body_idx, 3:7],
+            self.robot.data.body_com_state_w.torch[:, self.body_idx, :3] - self._env.scene.env_origins,
+            self.robot.data.body_com_state_w.torch[:, self.body_idx, 3:7],
         )
         self.metrics["position_error"] = torch.norm(pos_error, dim=-1)
         self.metrics["orientation_error"] = torch.norm(rot_error, dim=-1)
         # compute the velocity error
         self.metrics["linear_velocity_error"] = torch.norm(
-            self.twist_command[:, 0, :3] - self.robot.data.body_com_state_w[:, self.body_idx, 7:10], dim=-1
+            self.twist_command[:, 0, :3] - self.robot.data.body_com_state_w.torch[:, self.body_idx, 7:10], dim=-1
         )
         self.metrics["angular_velocity_error"] = torch.norm(
-            self.twist_command[:, 0, 3:] - self.robot.data.body_com_state_w[:, self.body_idx, 10:], dim=-1
+            self.twist_command[:, 0, 3:] - self.robot.data.body_com_state_w.torch[:, self.body_idx, 10:], dim=-1
         )
         # compute the acceleration error
         self.metrics["linear_acceleration_error"] = torch.norm(
-            self.acc_command[:, 0, :3] - self.robot.data.body_acc_w[:, self.body_idx, 0:3], dim=-1
+            self.acc_command[:, 0, :3] - self.robot.data.body_acc_w.torch[:, self.body_idx, 0:3], dim=-1
         )
         self.metrics["angular_acceleration_error"] = torch.norm(
-            self.acc_command[:, 0, 3:] - self.robot.data.body_acc_w[:, self.body_idx, 3:], dim=-1
+            self.acc_command[:, 0, 3:] - self.robot.data.body_acc_w.torch[:, self.body_idx, 3:], dim=-1
         )
 
     def _resample_command(self, env_ids: Sequence[int]):
@@ -385,7 +385,7 @@ class RefTrajectoryCommand(CommandTerm):
         # print("The tracking error of the orientation is ", self.metrics["orientation_error"])
 
         # -- current body pose
-        body_pose_w = self.robot.data.body_com_state_w[:, self.body_idx]
+        body_pose_w = self.robot.data.body_com_state_w.torch[:, self.body_idx]
         self.body_pose_visualizer.visualize(body_pose_w[:, :3], body_pose_w[:, 3:7])
 
 
@@ -451,7 +451,7 @@ class UniformTwistCommandGlobal(CommandTerm):
         # create buffers
         # -- commands: (x, y, z, qw, qx, qy, qz) in root frame
         self.pose_command_w = torch.zeros(self.num_envs, 7, device=self.device)
-        self.pose_command_w[:, 3] = 1.0
+        self.pose_command_w[:, 6] = 1.0  # XYZW: quat w
         self.twist_command = torch.zeros(self.num_envs, 6, device=self.device)
         # -- metrics
         self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
@@ -490,18 +490,18 @@ class UniformTwistCommandGlobal(CommandTerm):
         pos_error, rot_error = compute_pose_error(
             self.pose_command_w[:, :3],
             self.pose_command_w[:, 3:],
-            self.robot.data.body_com_state_w[:, self.body_idx, :3] - self._env.scene.env_origins,
-            self.robot.data.body_com_state_w[:, self.body_idx, 3:7],
+            self.robot.data.body_com_state_w.torch[:, self.body_idx, :3] - self._env.scene.env_origins,
+            self.robot.data.body_com_state_w.torch[:, self.body_idx, 3:7],
         )
         self.metrics["position_error"] = torch.norm(pos_error, dim=-1)
         self.metrics["orientation_error"] = torch.norm(rot_error, dim=-1)
 
         # compute the velocity error
         self.metrics["linear_velocity_error"] = torch.norm(
-            self.twist_command[:, :3] - self.robot.data.body_com_state_w[:, self.body_idx, 7:10], dim=-1
+            self.twist_command[:, :3] - self.robot.data.body_com_state_w.torch[:, self.body_idx, 7:10], dim=-1
         )
         self.metrics["angular_velocity_error"] = torch.norm(
-            self.twist_command[:, 3:] - self.robot.data.body_com_state_w[:, self.body_idx, 10:], dim=-1
+            self.twist_command[:, 3:] - self.robot.data.body_com_state_w.torch[:, self.body_idx, 10:], dim=-1
         )
 
     def _resample_command(self, env_ids: Sequence[int]):
@@ -574,7 +574,7 @@ class UniformTwistCommandGlobal(CommandTerm):
         # print("The tracking error of the orientation is ", self.metrics["orientation_error"])
 
         # -- current body pose
-        body_pose_w = self.robot.data.body_com_state_w[:, self.body_idx]
+        body_pose_w = self.robot.data.body_com_state_w.torch[:, self.body_idx]
         self.body_pose_visualizer.visualize(body_pose_w[:, :3], body_pose_w[:, 3:7])
 
 

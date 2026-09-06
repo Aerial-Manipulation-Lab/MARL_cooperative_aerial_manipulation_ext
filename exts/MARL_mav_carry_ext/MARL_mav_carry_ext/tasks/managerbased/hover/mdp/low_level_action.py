@@ -7,7 +7,7 @@ import isaaclab.utils.math as math_utils
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.managers import ActionTerm, ActionTermCfg
 from isaaclab.markers import VisualizationMarkers
-from isaaclab.utils import configclass
+from isaaclab.utils.configclass import configclass  # explicit: isaaclab.utils lazy-exports this name and it can be shadowed by the submodule
 from isaaclab.utils.math import quat_inv, quat_mul
 
 from .marker_utils import FORCE_MARKER_Z_CFG, TORQUE_MARKER_CFG
@@ -63,7 +63,11 @@ class LowLevelAction(ActionTerm):
     def apply_actions(self):
         """Apply the processed external forces to the rotors/falcon bodies."""
         self._forces = torch.clamp(self._forces, 0.0, 25.0)
-        self._env.scene["robot"].set_external_force_and_torque(self._forces, self._torques, self._body_ids)
+        robot = self._env.scene["robot"]
+        robot.permanent_wrench_composer.reset()
+        robot.permanent_wrench_composer.add_forces_and_torques(
+            forces=self._forces, torques=self._torques, body_ids=self._body_ids
+        )
 
     """
     visualizations
@@ -104,8 +108,8 @@ class LowLevelAction(ActionTerm):
 
         # Get drone positions and orientations
         drone_idx = self._robot.find_bodies("Falcon.*base_link")[0]
-        drone_pos_world_frame = self._robot.data.body_com_state_w[:, drone_idx, :3].view(-1, 3)
-        drone_orientation = self._robot.data.body_com_state_w[:, drone_idx, 3:7].view(-1, 4)
+        drone_pos_world_frame = self._robot.data.body_com_state_w.torch[:, drone_idx, :3].view(-1, 3)
+        drone_orientation = self._robot.data.body_com_state_w.torch[:, drone_idx, 3:7].view(-1, 4)
 
         # Rotate the arrow to point in the direction of the force
         zeros = torch.zeros(self._env.scene.num_envs, 1)

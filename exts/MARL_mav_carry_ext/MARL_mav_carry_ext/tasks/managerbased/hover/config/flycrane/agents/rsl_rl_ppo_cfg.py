@@ -1,5 +1,5 @@
-from isaaclab.utils import configclass
-from isaaclab_tasks.utils.wrappers.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, RslRlPpoAlgorithmCfg
+from isaaclab.utils.configclass import configclass  # explicit: isaaclab.utils lazy-exports this name and it can be shadowed by the submodule
+from isaaclab_rl.rsl_rl import RslRlMLPModelCfg, RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg
 
 
 @configclass
@@ -8,15 +8,24 @@ class FlycraneHoverPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     max_iterations = 300000
     save_interval = 50
     experiment_name = "Flycrane_hover"
-    empirical_normalization = False
+    # rsl-rl 5.x: map each network onto the env's observation groups. Both
+    # manager-based envs define a single "policy" group.
+    obs_groups = {"actor": ["policy"], "critic": ["policy"]}
     # logger = "wandb"
     # resume = True
     wandb_project = "Flycrane_hover"
-    policy = RslRlPpoActorCriticCfg(
-        init_noise_std=1.0,
-        actor_hidden_dims=[512, 256, 128],
-        critic_hidden_dims=[512, 256, 128],
+    # rsl-rl 5.x builds the two networks from separate model configs; the old single
+    # RslRlPpoActorCriticCfg is still exported but the runner reads cfg["actor"]/cfg["critic"].
+    actor = RslRlMLPModelCfg(
+        hidden_dims=[512, 256, 128],
         activation="elu",
+        obs_normalization=False,
+        distribution_cfg=RslRlMLPModelCfg.GaussianDistributionCfg(init_std=1.0),
+    )
+    critic = RslRlMLPModelCfg(
+        hidden_dims=[512, 256, 128],
+        activation="elu",
+        obs_normalization=False,
     )
     algorithm = RslRlPpoAlgorithmCfg(
         value_loss_coef=1.0,

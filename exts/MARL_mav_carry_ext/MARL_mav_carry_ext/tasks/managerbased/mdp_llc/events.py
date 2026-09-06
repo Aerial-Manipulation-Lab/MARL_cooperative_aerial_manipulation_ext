@@ -45,7 +45,7 @@ def reset_root_state_ref_trajectory(
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject | Articulation = env.scene[asset_cfg.name]
     # get default root state
-    root_states = asset.data.default_root_state[env_ids].clone()
+    root_states = asset.data.default_root_state.torch[env_ids].clone()
 
     # from reference buffer, find where to reset to
     command_manager_term = env.command_manager._terms[command_term]
@@ -74,8 +74,8 @@ def reset_root_state_ref_trajectory(
 
     velocities = root_states[:, 7:13] + rand_samples
     # set into the physics simulation
-    asset.write_root_pose_to_sim(torch.cat([positions, orientations], dim=-1), env_ids=env_ids)
-    asset.write_root_velocity_to_sim(velocities, env_ids=env_ids)
+    asset.write_root_pose_to_sim_index(root_pose=torch.cat([positions, orientations], dim=-1), env_ids=env_ids)
+    asset.write_root_velocity_to_sim_index(root_velocity=velocities, env_ids=env_ids)
 
 
 def reset_root_state_uniform_collision_check(
@@ -104,7 +104,7 @@ def reset_root_state_uniform_collision_check(
     # extract the used quantities (to enable type-hinting)
     asset: RigidObject | Articulation = env.scene[asset_cfg.name]
     # get default root state
-    root_states = asset.data.default_root_state[env_ids].clone()
+    root_states = asset.data.default_root_state.torch[env_ids].clone()
 
     # poses
     range_list = [pose_range.get(key, (0.0, 0.0)) for key in ["x", "y", "z", "roll", "pitch", "yaw"]]
@@ -119,7 +119,7 @@ def reset_root_state_uniform_collision_check(
 
     while in_collision.any():
         for rigid_body in env.scene.rigid_objects.values():
-            rigid_body_pos = rigid_body.data.body_com_state_w[:, 0, :3][env_ids]
+            rigid_body_pos = rigid_body.data.body_com_state_w.torch[:, 0, :3][env_ids]
             robot_pos = positions
 
             # Compute distances between robot and rigid body positions
@@ -150,8 +150,8 @@ def reset_root_state_uniform_collision_check(
     velocities = root_states[:, 7:13] + rand_samples
 
     # set into the physics simulation
-    asset.write_root_pose_to_sim(torch.cat([positions, orientations], dim=-1), env_ids=env_ids)
-    asset.write_root_velocity_to_sim(velocities, env_ids=env_ids)
+    asset.write_root_pose_to_sim_index(root_pose=torch.cat([positions, orientations], dim=-1), env_ids=env_ids)
+    asset.write_root_velocity_to_sim_index(root_velocity=velocities, env_ids=env_ids)
 
 
 def reset_spline_position_buffer(
@@ -160,7 +160,7 @@ def reset_spline_position_buffer(
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
     action_term: str = "low_level_action",
 ):
-    drone_positions = env.scene[asset_cfg.name].data.body_com_state_w[
+    drone_positions = env.scene[asset_cfg.name].data.body_com_state_w.torch[
         :, drone_idx, :3
     ] - env.scene.env_origins.unsqueeze(1)
     env.action_manager._terms[action_term].spline_positions[env_ids] = (

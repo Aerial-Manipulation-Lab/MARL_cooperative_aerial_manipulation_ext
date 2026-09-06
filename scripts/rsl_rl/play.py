@@ -40,6 +40,7 @@ import gymnasium as gym
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from importlib import metadata
 import torch
 
 from rsl_rl.runners import OnPolicyRunner
@@ -49,7 +50,8 @@ import MARL_mav_carry_ext.tasks  # noqa: F401
 
 from isaaclab.utils.dict import print_dict
 from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
-from isaaclab_tasks.utils.wrappers.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper, export_policy_as_onnx
+from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper, handle_deprecated_rsl_rl_cfg
+from isaaclab_rl.rsl_rl.exporter import export_policy_as_onnx
 
 
 def main():

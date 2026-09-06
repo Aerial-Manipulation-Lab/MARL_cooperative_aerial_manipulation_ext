@@ -7,7 +7,7 @@ import torch
 
 from isaaclab.envs import DirectMARLEnv
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.utils.math import quat_rotate
+from isaaclab.utils.math import quat_apply
 
 
 class DirectMARLPlotter:
@@ -39,12 +39,12 @@ class DirectMARLPlotter:
     def collect_load_data(self):
         """Collect the load data from the environment."""
         # load data
-        load_pos = self.robot.data.body_com_state_w[:, self.load_id, :3].squeeze(1)[0]
-        load_orientation = self.robot.data.body_com_state_w[:, self.load_id, 3:7].squeeze(1)[0]
-        load_vel = self.robot.data.body_com_state_w[:, self.load_id, 7:10].squeeze(1)[0]
-        load_ang_vel = self.robot.data.body_com_state_w[:, self.load_id, 10:].squeeze(1)[0]
-        load_acc = self.robot.data.body_com_state_w[:, self.load_id, 10:].squeeze(1)[0]
-        load_ang_acc = self.robot.data.body_com_state_w[:, self.load_id, 10:].squeeze(1)[0]
+        load_pos = self.robot.data.body_com_state_w.torch[:, self.load_id, :3].squeeze(1)[0]
+        load_orientation = self.robot.data.body_com_state_w.torch[:, self.load_id, 3:7].squeeze(1)[0]
+        load_vel = self.robot.data.body_com_state_w.torch[:, self.load_id, 7:10].squeeze(1)[0]
+        load_ang_vel = self.robot.data.body_com_state_w.torch[:, self.load_id, 10:].squeeze(1)[0]
+        load_acc = self.robot.data.body_com_state_w.torch[:, self.load_id, 10:].squeeze(1)[0]
+        load_ang_acc = self.robot.data.body_com_state_w.torch[:, self.load_id, 10:].squeeze(1)[0]
 
         # references
         load_pos_ref = self.env.pose_command_w[:, :3][0]
@@ -73,13 +73,13 @@ class DirectMARLPlotter:
 
     def collect_drone_data(self):
         """Collect the drone data from the environment."""
-        drone_pos = self.robot.data.body_com_state_w[:, self.drone_idx, :3][0]
-        drone_orientation = self.robot.data.body_com_state_w[:, self.drone_idx, 3:7][0]
-        drone_vel = self.robot.data.body_com_state_w[:, self.drone_idx, 7:10][0]
-        drone_ang_vel = self.robot.data.body_com_state_w[:, self.drone_idx, 10:][0]
-        drone_BR = quat_rotate(drone_orientation.unsqueeze(0), drone_ang_vel.unsqueeze(0))[0]
-        drone_acc = self.robot.data.body_acc_w[:, self.drone_idx, :3][0]
-        drone_ang_acc = self.robot.data.body_acc_w[:, self.drone_idx, 3:6][0]
+        drone_pos = self.robot.data.body_com_state_w.torch[:, self.drone_idx, :3][0]
+        drone_orientation = self.robot.data.body_com_state_w.torch[:, self.drone_idx, 3:7][0]
+        drone_vel = self.robot.data.body_com_state_w.torch[:, self.drone_idx, 7:10][0]
+        drone_ang_vel = self.robot.data.body_com_state_w.torch[:, self.drone_idx, 10:][0]
+        drone_BR = quat_apply(drone_orientation.unsqueeze(0), drone_ang_vel.unsqueeze(0))[0]
+        drone_acc = self.robot.data.body_acc_w.torch[:, self.drone_idx, :3][0]
+        drone_ang_acc = self.robot.data.body_acc_w.torch[:, self.drone_idx, 3:6][0]
         drone_jerk = self.env._drone_jerk[0]
         rotor_forces = self.env._forces[0][..., 2]  # 3 * 4 rotors
         policy_refs = self.env.actions

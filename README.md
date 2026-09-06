@@ -1,8 +1,8 @@
 # Decentralized Aerial Manipulation of a Cable-Suspended Load using Multi-Agent Reinforcement Learning
 
-[![IsaacSim](https://img.shields.io/badge/IsaacSim-4.5.0-silver.svg)](https://docs.omniverse.nvidia.com/isaacsim/latest/overview.html)
-[![Isaac Lab](https://img.shields.io/badge/IsaacLab-2.0.2-silver)](https://isaac-sim.github.io/IsaacLab)
-[![Python](https://img.shields.io/badge/python-3.10-blue.svg)](https://docs.python.org/3/whatsnew/3.10.html)
+[![IsaacSim](https://img.shields.io/badge/IsaacSim-6.0.1-silver.svg)](https://docs.omniverse.nvidia.com/isaacsim/latest/overview.html)
+[![Isaac Lab](https://img.shields.io/badge/IsaacLab-3.0.0--beta2-silver)](https://isaac-sim.github.io/IsaacLab)
+[![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://docs.python.org/3/whatsnew/3.12.html)
 [![Linux platform](https://img.shields.io/badge/platform-linux--64-orange.svg)](https://releases.ubuntu.com/22.04/)
 [![Windows platform](https://img.shields.io/badge/platform-windows--64-orange.svg)](https://www.microsoft.com/en-us/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com/)
@@ -35,9 +35,11 @@ Moreover, a test environment (without agent) for a single drone is also availabl
 
 ### Installation
 
-- Install Isaac Lab, see the [installation guide](https://isaac-sim.github.io/IsaacLab/source/setup/installation/index.html).
+- Install Isaac Lab 3.0 (Isaac Sim 6.0.1, Python 3.12), see the [installation guide](https://isaac-sim.github.io/IsaacLab/source/setup/installation/index.html).
+  Isaac Sim 6.0 ships `cp312` wheels only, so this needs a Python 3.12 environment.
 
-- Clone and install this fork of [SKRL](https://github.com/jackzeng-robotics/skrl)
+- Clone and install this fork of [SKRL](https://github.com/jackzeng-robotics/skrl) (2.1.0 line;
+  the MAPPO config uses fields that only exist in the fork)
 ```
 cd skrl
 pip install -e .

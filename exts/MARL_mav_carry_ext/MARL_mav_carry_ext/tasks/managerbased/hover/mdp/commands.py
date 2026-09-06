@@ -16,7 +16,7 @@ from isaaclab.assets import Articulation
 from isaaclab.managers import CommandTerm, CommandTermCfg
 from isaaclab.markers import VisualizationMarkers
 from isaaclab.markers.config import FRAME_MARKER_CFG
-from isaaclab.utils import configclass
+from isaaclab.utils.configclass import configclass  # explicit: isaaclab.utils lazy-exports this name and it can be shadowed by the submodule
 from isaaclab.utils.math import combine_frame_transforms, compute_pose_error, quat_from_euler_xyz, quat_unique
 
 if TYPE_CHECKING:
@@ -62,7 +62,7 @@ class UniformPoseCommandGlobal(CommandTerm):
         # create buffers
         # -- commands: (x, y, z, qw, qx, qy, qz) in root frame
         self.pose_command_b = torch.zeros(self.num_envs, 7, device=self.device)
-        self.pose_command_b[:, 3] = 1.0
+        self.pose_command_b[:, 6] = 1.0  # XYZW: quat w
         self.pose_command_w = torch.zeros_like(self.pose_command_b)
         # -- metrics
         self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
@@ -93,8 +93,8 @@ class UniformPoseCommandGlobal(CommandTerm):
     def _update_metrics(self):
         # transform command from base frame to simulation world frame
         self.pose_command_w[:, :3], self.pose_command_w[:, 3:] = combine_frame_transforms(
-            self.robot.data.root_pos_w,
-            self.robot.data.root_quat_w,
+            self.robot.data.root_pos_w.torch,
+            self.robot.data.root_quat_w.torch,
             self.pose_command_b[:, :3],
             self.pose_command_b[:, 3:],
         )
@@ -102,8 +102,8 @@ class UniformPoseCommandGlobal(CommandTerm):
         pos_error, rot_error = compute_pose_error(
             self.pose_command_w[:, :3],
             self.pose_command_w[:, 3:],
-            self.robot.data.body_com_state_w[:, self.body_idx, :3],
-            self.robot.data.body_com_state_w[:, self.body_idx, 3:7],
+            self.robot.data.body_com_state_w.torch[:, self.body_idx, :3],
+            self.robot.data.body_com_state_w.torch[:, self.body_idx, 3:7],
         )
         self.metrics["position_error"] = torch.norm(pos_error, dim=-1)
         self.metrics["orientation_error"] = torch.norm(rot_error, dim=-1)
@@ -159,7 +159,7 @@ class UniformPoseCommandGlobal(CommandTerm):
         # print("The tracking error of the orientation is ", self.metrics["orientation_error"])
 
         # -- current body pose
-        body_pose_w = self.robot.data.body_com_state_w[:, self.body_idx]
+        body_pose_w = self.robot.data.body_com_state_w.torch[:, self.body_idx]
         self.body_pose_visualizer.visualize(body_pose_w[:, :3], body_pose_w[:, 3:7])
 
 

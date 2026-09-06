@@ -40,8 +40,10 @@ FALCON_CFG = ArticulationCfg(
     ),
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 2.0, 1.5),
-        # rot=(0.7071068, 0, 0, 0.7071068),
-        rot=(1.0, 0, 0, 0.0),
+        # Isaac Lab 3.0 quaternions are XYZW (were WXYZ). Identity is (0, 0, 0, 1).
+        # 90 deg about z, previously written WXYZ as (0.7071068, 0, 0, 0.7071068):
+        # rot=(0, 0, 0.7071068, 0.7071068),
+        rot=(0.0, 0, 0, 1.0),
         joint_pos={
             ".*": 0.0,
         },
