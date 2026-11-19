@@ -579,7 +579,7 @@ class MARLHoverEnv(DirectMARLEnv):
         )
 
         self.load_orientation[:] = self.robot.data.body_com_state_w.torch[:, self._payload_idx, 3:7].squeeze(1)
-        payload_orientation_world = self.load_orientation.repeat(1, self._num_drones, 1).view(-1, 4)
+        payload_orientation_world = self.load_orientation.repeat_interleave(self._num_drones, dim=0)
         payload_orientation_inv = quat_inv(payload_orientation_world)
         rope_orientations_payload = quat_mul(
             payload_orientation_inv, rope_orientations_world

@@ -11,6 +11,8 @@ A single Isaac Sim app is shared by every test (Kit cannot be started twice in o
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 TASKS = [
@@ -69,6 +71,40 @@ def test_env_resets_and_steps(gym, task_id, num_agents):
 
         state = unwrapped.state()
         assert state.shape == (2, unwrapped.state_space.shape[0])
+    finally:
+        env.close()
+
+
+@pytest.mark.parametrize("task_id,num_agents", TASKS)
+def test_payload_cable_angle_uses_own_environment(gym, monkeypatch, task_id, num_agents):
+    import torch
+    from isaaclab.utils.math import quat_from_euler_xyz
+    from isaaclab_tasks.utils import parse_env_cfg
+
+    env_cfg = parse_env_cfg(task_id, device="cuda:0", num_envs=2)
+    env = gym.make(task_id, cfg=env_cfg)
+    try:
+        env.reset()
+        unwrapped = env.unwrapped
+        data = unwrapped.robot.data
+        body_state = data.body_com_state_w.torch.clone()
+        rope_indices = unwrapped._rope_idx if num_agents == 3 else unwrapped._bottom_rope_idx
+
+        # A cross-environment comparison gives a 150-degree relative roll, past the 135-degree limit.
+        roll = body_state.new_tensor([-75.0, 75.0]).deg2rad()
+        zeros = torch.zeros_like(roll)
+        payload = quat_from_euler_xyz(roll, zeros, zeros)
+        body_state[:, unwrapped._payload_idx, 3:7] = payload[:, None, :]
+        body_state[:, rope_indices, 3:7] = payload[:, None, :]
+
+        with monkeypatch.context() as patch:
+            patch.setattr(type(data), "body_com_state_w", SimpleNamespace(torch=body_state))
+            unwrapped._get_dones()
+            assert unwrapped.angle_limit_load.tolist() == [False, False]
+
+            body_state[0, rope_indices[1], 3:7] = payload[1]
+            unwrapped._get_dones()
+            assert unwrapped.angle_limit_load.tolist() == [True, False]
     finally:
         env.close()
 
